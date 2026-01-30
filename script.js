@@ -1041,6 +1041,16 @@ window.stateReset = stateReset;
 window.goHome = goHome;
 window.shareResults = shareResults;
 window.selectAmount = selectAmount;
-window.toggleModal = toggleModal; // Fix for Close Buttons
+window.toggleModal = toggleModal;
+// CRITICAL: Expose Auth so Fallback knows we are live
+window.auth = auth;
 
 console.log("🚀 QuizMaster Script Loaded & Ready");
+
+// Clean up Fallbacks (Hydration)
+document.addEventListener('DOMContentLoaded', () => {
+    const loginBtn = document.getElementById('google-login-btn');
+    if (loginBtn) loginBtn.removeAttribute('onclick'); // Disable fallback alert
+
+    // We keep leaderboard onclick as it uses toggleModal which is safe
+});
