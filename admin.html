@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizMaster Admin - Seed Database</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .admin-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .log-box {
+            background: rgba(0, 0, 0, 0.3);
+            height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            border-radius: 10px;
+            font-family: monospace;
+            margin-top: 1rem;
+            text-align: left;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .success {
+            color: #2ECC71;
+        }
+
+        .error {
+            color: #FF6B6B;
+        }
+
+        .info {
+            color: #3498DB;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+    </div>
+
+    <nav class="navbar" style="padding: 15px 20px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <i class="fa-solid fa-shield-halved" style="color: var(--accent);"></i> ADMIN PANEL
+    </nav>
+
+    <!-- AUTH GATE -->
+    <div id="auth-gate"
+        style="display:flex; height:80vh; align-items:center; justify-content:center; flex-direction:column; gap:20px;">
+        <div class="glass-card" style="text-align:center; max-width:400px;">
+            <h2><i class="fa-solid fa-lock"></i> Restricted Access</h2>
+            <p style="color:var(--text-muted); margin-bottom:2rem;">Manage your quiz database and settings.</p>
+
+            <!-- Navigation Tabs -->
+            <div style="display:flex; gap:10px; margin-bottom:20px;">
+                <button class="btn primary-btn" onclick="switchTab('settings')"
+                    style="flex:1; font-size:0.9rem;">Settings</button>
+                <button class="btn primary-btn" onclick="switchTab('leaderboard')"
+                    style="flex:1; font-size:0.9rem;">Leaderboard</button>
+            </div>
+
+            <!-- Tab Content -->
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button id="admin-login-btn" class="btn primary-btn" style="width:100%;">
+                    <i class="fa-brands fa-google"></i> Sign in as Admin
+                </button>
+                <a href="index.html" class="btn text-btn" style="width:100%; text-align:center;">
+                    <i class="fa-solid fa-arrow-left"></i> Back to Game
+                </a>
+            </div>
+            <p id="auth-error" style="color:var(--error); margin-top:10px; font-size:0.9rem; display:none;"></p>
+        </div>
+    </div>
+
+    <main class="admin-container" id="admin-dashboard" style="display: none;">
+        <div class="glass-card">
+            <h1><i class="fa-solid fa-server"></i> Welcome, Admin!</h1>
+            <div style="font-size:0.8rem; color:var(--accent); margin-bottom:20px;">Logged in as:
+                chirenjeevi7616@gmail.com</div>
+
+            <!-- Tab Content -->
+            <div id="settings-tab" class="tab-content active">
+                <!-- Existing Settings (Refresh) -->
+                <div class="admin-card">
+                    <h3><i class="fa-solid fa-sync"></i> Content Refresh</h3>
+                    <p style="color:var(--text-muted); margin-bottom:1rem;">Stale questions (>7 days) are automatically
+                        purged on refresh.</p>
+                    <button id="refresh-btn" class="btn primary-btn" onclick="forceRefresh()">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh Question Bank
+                    </button>
+                    <div id="refresh-log" class="log-box"></div>
+                </div>
+
+                <div id="stale-box" class="stale-warning">
+                    <span>⚠️ Database Questions are >7 Days Old!</span>
+                    <button onclick="refreshWeeklyQuestions()"
+                        style="background:white; color:#ff4757; border:none; padding:5px 10px; cursor:pointer; font-weight:bold;">Refresh
+                        All Now</button>
+                </div>
+
+                <div class="dashboard-grid">
+                    <p class="subtitle">Fetch fresh questions and stock up the Firestore Question Bank.</p>
+
+                    <div class="config-grid">
+                        <div class="input-group">
+                            <label>Target Exam</label>
+                            <select id="seed-exam">
+                                <option value="TNPSC">TNPSC</option>
+                                <option value="RRB">RRB</option>
+                                <option value="BANKING">Banking</option>
+                                <option value="UPSC">UPSC CSE</option>
+                                <option value="JEE">JEE Advanced</option>
+                                <option value="NEET">NEET-UG</option>
+                                <option value="GATE">GATE</option>
+                                <option value="CAT">CAT</option>
+                                <option value="CA">Chartered Accountancy</option>
+                                <option value="CLAT">CLAT</option>
+                                <option value="UGC-NET">UGC NET</option>
+                                <option value="NDA">NDA & NA</option>
+                                <option value="NID">NID DAT</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Amount to Fetch</label>
+                            <select id="seed-amount">
+                                <option value="10">10 Questions</option>
+                                <option value="20">20 Questions</option>
+                                <option value="50">50 Questions (Batch)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button id="start-seed-btn" class="btn primary-btn">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Start Seeding
+                    </button>
+                </div>
+            </div>
+
+            <!-- LEADERBOARD TAB -->
+            <div id="leaderboard-tab" class="tab-content">
+                <div class="admin-card">
+                    <h3><i class="fa-solid fa-users-gear"></i> Manage High Scores</h3>
+                    <button class="btn primary-btn" onclick="fetchLeaderboardAdmin()"
+                        style="margin-bottom:1rem; font-size:0.9rem;">
+                        <i class="fa-solid fa-rotate-right"></i> Refresh List
+                    </button>
+                    <div id="admin-lb-list" style="display:flex; flex-direction:column; gap:10px;">
+                        <!-- JS Injected -->
+                    </div>
+                </div>
+            </div>
+
+            <br><br>
+            <a href="index.html" class="btn secondary-btn">Back to App</a>
+
+            <div id="logs" class="log-box">
+                <div class="log-entry info">System Ready. Select an exam and click Start.</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- TABS JS -->
+    <script>
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(d => d.style.display = 'none');
+            document.getElementById(id + '-tab').style.display = 'block';
+        }
+        // Init
+        document.getElementById('settings-tab').style.display = 'block';
+        document.getElementById('leaderboard-tab').style.display = 'none'; // Initially hidden
+    </script>
+
+    <script type="module">
+        import { db, collection, addDoc, doc, setDoc, serverTimestamp, query, where, getDocs, deleteDoc, writeBatch, Timestamp, auth, provider, signInWithPopup, onAuthStateChanged, orderBy, limit } from "./firebase-config.js";
+
+        const ALLOWED_ADMINS = ['chirenjeevi7616@gmail.com'];
+
+        // --- AUTH LOGIC ---
+        const gate = document.getElementById('auth-gate');
+        const dashboard = document.getElementById('admin-dashboard');
+        const errorMsg = document.getElementById('auth-error');
+
+        document.getElementById('admin-login-btn').addEventListener('click', async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                checkAdmin(result.user);
+            } catch (err) {
+                console.error(err);
+                errorMsg.style.display = 'block';
+                errorMsg.innerText = "Login Failed: " + err.message;
+            }
+        });
+
+        function checkAdmin(user) {
+            if (ALLOWED_ADMINS.includes(user.email)) {
+                // SUCCESS
+                gate.style.display = 'none';
+                dashboard.style.display = 'block';
+                log(`🔓 Access Granted to ${user.email}`, 'success');
+                checkStaleQuestions(); // Only run checks after login
+            } else {
+                // FAIL
+                errorMsg.style.display = 'block';
+                errorMsg.innerText = `⛔ Access Denied for ${user.email}`;
+                auth.signOut();
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) checkAdmin(user);
+        });
+
+        // CONFIG MAPPING
+        // Maps our "Exam Types" to OpenTriviaDB Category IDs
+        const API_MAPPING = {
+            'TNPSC': [9, 23, 22], // GK, History, Geography
+            'RRB': [17, 18, 19], // Science, Computers, Math
+            'BANKING': [19, 18], // Math, Computers
+            'UPSC': [23, 24, 25, 22], // History, Politics, Art, Geo
+            'JEE': [17, 19], // Science, Math
+            'NEET': [17], // Science
+            'GATE': [18, 19], // Computers, Math
+            'CAT': [19, 9], // Math, GK
+            'CA': [19, 24], // Math, Politics (Finance approx)
+            'CLAT': [24, 23], // Politics, History
+            'NDA': [22, 23], // Geo, History
+            'NID': [25, 24], // Art, Politics (Design approx)
+            'UGC-NET': [9, 23], // GK, Teaching (History approx)
+        };
+
+        const logs = document.getElementById('logs');
+        const seedBtn = document.getElementById('start-seed-btn');
+        const staleBox = document.getElementById('stale-box');
+
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+            div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logs.appendChild(div);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        async function checkStaleQuestions() {
+            log("Checking for stale questions...", "info");
+            const metadataRef = doc(db, "system_metadata", "status");
+            const metadataSnap = await getDocs(metadataRef); // Changed to getDocs for consistency, though doc() returns a single doc.
+            const metadata = metadataSnap.data();
+
+            if (metadata && metadata.last_update) {
+                const lastUpdate = metadata.last_update.toDate();
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+                if (lastUpdate < sevenDaysAgo) {
+                    staleBox.style.display = 'flex';
+                    log("⚠️ Database questions are >7 days old! Consider refreshing.", "error");
+                } else {
+                    staleBox.style.display = 'none';
+                    log("Database questions are up-to-date.", "success");
+                }
+            } else {
+                staleBox.style.display = 'flex';
+                log("⚠️ No last update metadata found. Database might be stale.", "error");
+            }
+        }
+
+        async function refreshWeeklyQuestions() {
+            if (!confirm("Are you sure you want to delete ALL existing questions and fetch new ones? This action is irreversible.")) {
+                return;
+            }
+
+            log("Starting weekly question refresh...", "info");
+            staleBox.style.display = 'none';
+            seedBtn.disabled = true;
+
+            try {
+                // 1. Delete all existing questions
+                log("Deleting all existing questions...", "info");
+                const q = query(collection(db, "questions"));
+                const querySnapshot = await getDocs(q);
+                const batch = writeBatch(db);
+                let deletedCount = 0;
+
+                querySnapshot.forEach((doc) => {
+                    batch.delete(doc.ref);
+                    deletedCount++;
+                });
+                await batch.commit();
+                log(`✅ Deleted ${deletedCount} existing questions.`, "success");
+
+                // 2. Fetch new questions for each exam type
+                log("Fetching new questions for all exam types...", "info");
+                let totalAdded = 0;
+                const exams = Object.keys(API_MAPPING);
+                const amountPerExam = 20; // Fetch 20 questions for each exam type
+
+                for (const exam of exams) {
+                    const categories = API_MAPPING[exam];
+                    const catId = categories[Math.floor(Math.random() * categories.length)];
+                    log(`Fetching ${amountPerExam} questions for ${exam} (Category ID: ${catId})...`, 'info');
+
+                    const res = await fetch(`https://opentdb.com/api.php?amount=${amountPerExam}&category=${catId}&type=multiple`);
+                    const data = await res.json();
+
+                    if (data.response_code !== 0) {
+                        log(`❌ API Error for ${exam}: ${data.response_code}`, 'error');
+                        continue;
+                    }
+
+                    for (const q of data.results) {
+                        await addDoc(collection(db, "questions"), {
+                            question: q.question,
+                            correct_answer: q.correct_answer,
+                            incorrect_answers: q.incorrect_answers,
+                            category: q.category,
+                            difficulty: q.difficulty,
+                            exam_tag: exam,
+                            created_at: new Date(),
+                            last_used: null
+                        });
+                        totalAdded++;
+                    }
+                    log(`✅ Added ${data.results.length} questions for ${exam}.`, 'success');
+                }
+
+                // 3. Update metadata
+                await setDoc(doc(db, "system_metadata", "status"), { last_update: serverTimestamp() });
+                log(`✅ Successfully refreshed database with ${totalAdded} new questions!`, 'success');
+
+            } catch (error) {
+                log(`❌ Error during refresh: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                seedBtn.disabled = false;
+                checkStaleQuestions(); // Re-check status after refresh
+            }
+        }
+
+
+        seedBtn.addEventListener('click', async () => {
+            const exam = document.getElementById('seed-exam').value;
+            const amount = parseInt(document.getElementById('seed-amount').value);
+            const categories = API_MAPPING[exam];
+
+            seedBtn.disabled = true;
+            seedBtn.innerText = "Seeding...";
+            log(`Starting seed for ${exam}...`, 'info');
+
+            let totalAdded = 0;
+
+            try {
+                // Fetch from random category in the list
+                const catId = categories[Math.floor(Math.random() * categories.length)];
+                log(`Fetching from API (Category ID: ${catId})...`, 'info');
+
+                const res = await fetch(`https://opentdb.com/api.php?amount=${amount}&category=${catId}&type=multiple`);
+                const data = await res.json();
+
+                if (data.response_code !== 0) throw new Error("API Limit or No Results");
+
+                log(`Got ${data.results.length} questions. Uploading to Firestore...`, 'info');
+
+                for (const q of data.results) {
+                    await addDoc(collection(db, "questions"), {
+                        question: q.question,
+                        correct_answer: q.correct_answer,
+                        incorrect_answers: q.incorrect_answers,
+                        category: q.category,
+                        difficulty: q.difficulty,
+                        exam_tag: exam, // The Key Filter
+                        created_at: new Date(),
+                        last_used: null // Null means "Fresh"
+                    });
+                    totalAdded++;
+                }
+
+                // Update Metadata on manual seed too
+                await setDoc(doc(db, "system_metadata", "status"), { last_update: serverTimestamp() });
+
+                log(`✅ Successfully added ${amount} questions for ${exam}!`, 'success');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                console.error(error);
+            }
+
+            document.getElementById('start-seed-btn').disabled = false;
+            document.getElementById('start-seed-btn').innerText = "Start Seeding";
+            checkStaleQuestions(); // Re-check status after manual seed
+        });
+
+        // Initial check moved to inside AUTH SUCCESS
+        // checkStaleQuestions(); 
+    </script>
+</body>
+
+</html>
+```

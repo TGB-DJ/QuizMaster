@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to validate leaderboards
+    function isValidScore() {
+      return request.resource.data.keys().hasAll(['name', 'score', 'date']) &&
+             request.resource.data.name is string &&
+             request.resource.data.name.size() > 0 &&
+             request.resource.data.name.size() <= 20 &&
+             request.resource.data.score is number &&
+             request.resource.data.score >= 0 &&
+             request.resource.data.score <= 5000; // Reasonable max query limit
+    }
+
+    match /leaderboard/{document=**} {
+      allow read: if true;
+      allow create: if isValidScore();
+      allow update, delete: if false; 
+    }
+    
+    match /questions/{document=**} {
+       // Allow full access for now (Admin Seeder + User Read/Write for 'last_used' update)
+       allow read, write: if true;
+    }
+  }
+}

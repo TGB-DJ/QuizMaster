@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizMaster Pro - Ultimate Quiz App</title>
+    <!-- Cache Busting -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="stylesheet" href="style.css">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6C63FF">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Performance Optimization -->
+    <link rel="preconnect" href="https://www.gstatic.com"> <!-- Firebase -->
+</head>
+
+<body>
+    <div id="toast-container"></div>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="logo">
+            <i class="fa-solid fa-brain"></i> QuizMaster <span class="badge">PRO</span>
+        </div>
+
+        <div class="nav-controls">
+            <button id="sound-btn" class="icon-btn" onclick="toggleSound()" aria-label="Toggle Sound">
+                <i class="fa-solid fa-volume-high"></i>
+            </button>
+            <button class="icon-btn" id="profile-btn" onclick="handleProfileClick()" title="My Stats"><i
+                    class="fa-solid fa-user"></i></button>
+            <button id="theme-toggle" class="icon-btn" onclick="toggleTheme()" aria-label="Toggle Theme">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <button id="fullscreen-btn" class="icon-btn" onclick="toggleFullscreen()" aria-label="Toggle Fullscreen">
+                <i class="fa-solid fa-expand"></i>
+            </button>
+        </div>
+    </nav>
+
+    <main class="app-container">
+        <!-- SCREEN 1: START MENU -->
+        <section id="start-screen" class="screen active">
+            <div class="glass-card start-card">
+                <h1>QuizMaster <span class="badge">PRO</span></h1>
+                <p class="subtitle">Master Competitive Exams</p>
+
+                <!-- Auth Section -->
+                <div id="auth-section" style="margin-bottom: 20px;">
+                    <button id="google-login-btn" class="btn secondary-btn" onclick="handleAuthFallback()"
+                        style="width: 100%; gap: 10px; font-size: 0.9rem;">
+                        <i class="fa-brands fa-google"></i> Sign in to Save Progress
+                    </button>
+                    <div id="user-profile" class="hidden"
+                        style="display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 50px;">
+                        <img id="user-avatar" src="" alt="User" style="width: 30px; height: 30px; border-radius: 50%;">
+                        <span id="user-name-display" style="font-size: 0.9rem;"></span>
+                        <button id="logout-btn"
+                            style="background: none; border: none; color: var(--error); cursor: pointer;"><i
+                                class="fa-solid fa-right-from-bracket"></i></button>
+                    </div>
+                </div>
+
+                <div class="input-group username-group">
+                    <input type="text" id="username" placeholder="Enter your name" maxlength="15">
+                </div>
+
+                <form id="quiz-config">
+                    <div class="config-grid">
+                        <div class="input-group">
+                            <label for="exam-type">Select Exam</label>
+                            <select id="exam-type">
+                                <option value="TNPSC">TNPSC (Group 1, 2, 4)</option>
+                                <option value="RRB">RRB (Railways)</option>
+                                <option value="BANKING">Banking (IBPS/SBI)</option>
+                                <option value="UPSC">UPSC CSE</option>
+                                <option value="JEE">JEE Advanced</option>
+                                <option value="NEET">NEET-UG</option>
+                                <option value="GATE">GATE</option>
+                                <option value="CAT">CAT</option>
+                                <option value="CA">Chartered Accountancy</option>
+                                <option value="CLAT">CLAT</option>
+                                <option value="UGC-NET">UGC NET</option>
+                                <option value="NDA">NDA & NA</option>
+                                <option value="NID">NID DAT</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label><i class="fa-solid fa-gauge-high"></i> Difficulty</label>
+                            <select id="difficulty">
+                                <option value="">Any</option>
+                                <option value="easy">Easy</option>
+                                <option value="medium">Medium</option>
+                                <option value="hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label><i class="fa-solid fa-list-ol"></i> Questions</label>
+                        <div class="amount-selector" id="amount-box">
+                            <button type="button" class="amount-btn" onclick="selectAmount(this, 10)">10</button>
+                            <button type="button" class="amount-btn" onclick="selectAmount(this, 20)">20</button>
+                            <button type="button" class="amount-btn" onclick="selectAmount(this, 50)">50</button>
+                        </div>
+                        <input type="hidden" id="amount" value="">
+                    </div>
+
+                    <div style="text-align: center; width: 100%;">
+                        <button type="submit" class="btn primary-btn pulse">Start Quiz <i
+                                class="fa-solid fa-bolt"></i></button>
+                    </div>
+
+                    <button type="button" id="show-leaderboard" class="btn text-btn"
+                        onclick="toggleModal('leaderboard-modal', true)">View High Scores <i
+                            class="fa-solid fa-trophy"></i></button>
+                </form>
+            </div>
+        </section>
+
+        <!-- SCREEN 2: QUIZ INTERFACE -->
+        <section id="quiz-screen" class="screen hidden">
+            <div class="glass-card quiz-card">
+                <div class="quiz-header">
+                    <div class="info-badges">
+                        <div class="badge-item score-badge"><i class="fa-solid fa-star"></i> <span
+                                id="current-score">0</span></div>
+                        <div class="badge-item streak-badge hidden" id="streak-box">🔥 <span id="streak-count">0</span>
+                        </div>
+                    </div>
+                    <div class="timer-badge">
+                        <i class="fa-regular fa-clock"></i> <span id="time-left">15</span>s
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bar-bg">
+                        <div id="progress-bar" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+
+                <div class="lifelines">
+                    <button class="lifeline-btn" id="lifeline-5050" title="Remove 2 wrong options">
+                        <i class="fa-solid fa-percent"></i> 50/50
+                    </button>
+                    <button class="lifeline-btn" id="lifeline-freeze" title="Freeze Timer for 10s">
+                        <i class="fa-regular fa-snowflake"></i> Freeze
+                    </button>
+                    <button class="lifeline-btn" id="lifeline-skip" title="Skip Question">
+                        <i class="fa-solid fa-forward"></i> Skip
+                    </button>
+                </div>
+
+                <div class="question-container">
+                    <h2 id="question-text">Loading question...</h2>
+                    <span class="category-tag" id="q-category">Category</span>
+                </div>
+
+                <div id="options-container" class="options-grid">
+                    <!-- Options injected via JS -->
+                </div>
+
+                <div class="quiz-footer">
+                    <span class="q-counter">Question <span id="current-q">1</span> / <span id="total-q">10</span></span>
+                    <button id="next-btn" class="btn secondary-btn" disabled>Next <i
+                            class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 3: RESULTS -->
+        <section id="result-screen" class="screen hidden">
+            <div class="glass-card result-wrapper">
+                <div class="result-header">
+                    <div class="rank-icon" id="rank-icon">
+                        <i class="fa-solid fa-medal"></i>
+                    </div>
+                    <h2>Quiz Completed!</h2>
+                    <p class="final-message" id="final-message">Great Job!</p>
+                </div>
+
+                <div class="score-display">
+                    <div class="main-score">
+                        <span id="final-score">0</span>
+                        <small>Points</small>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="scoreChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="label">Correct</span>
+                        <span id="correct-count" class="value success">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">Wrong</span>
+                        <span id="wrong-count" class="value error">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="label">Accuracy</span>
+                        <span id="accuracy-percent" class="value">0%</span>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="share-btn" class="btn accent-btn"><i class="fa-brands fa-twitter"></i> Share</button>
+                    <button id="review-btn" class="btn secondary-btn"><i class="fa-solid fa-eye"></i> Review</button>
+                    <button id="restart-btn" class="btn primary-btn"><i class="fa-solid fa-rotate-right"></i> Play
+                        Again</button>
+                    <button id="home-btn" class="btn secondary-btn"><i class="fa-solid fa-house"></i> Home</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 5: REVIEW ANSWERS -->
+        <section id="review-screen" class="screen hidden">
+            <div class="glass-card review-card">
+                <div class="modal-header">
+                    <h2>Review Answers</h2>
+                    <button class="btn primary-btn pulse" onclick="startGame()">Start Quiz <i
+                            class="fa-solid fa-bolt"></i></button>
+                </div>
+                <div id="review-list" class="review-list">
+                    <!-- Injected JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 4: LEADERBOARD -->
+        <div id="leaderboard-modal" class="modal hidden">
+            <div class="modal-content glass-card">
+                <div class="modal-header">
+                    <h2>🏆 Hall of Fame</h2>
+                    <button class="close-modal" onclick="toggleModal('leaderboard-modal', false)"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div id="high-score-list">
+                    <!-- Scores injected here -->
+                    <p class="empty-state">No high scores yet. Be the first!</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="loader" class="loader-overlay hidden">
+            <div class="spinner"></div>
+            <p>Fetching Brain Teasers...</p>
+        </div>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.8rem; margin-top: auto;">
+        <p>&copy; 2026 <strong>CJ Productions</strong>. All Rights Reserved.</p>
+        <div style="margin-top: 5px;">
+            <button id="open-rules" class="link-btn">Game Rules</button> |
+            <button id="open-policy" class="link-btn">Terms & Privacy</button>
+        </div>
+    </footer>
+
+    <!-- RULES MODAL -->
+    <div id="rules-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>📜 Game Rules</h2>
+                <button class="close-modal-rules" onclick="toggleModal('rules-modal', false)"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="text-align: left; line-height: 1.6;">
+                <h3>🎯 Scoring & XP</h3>
+                <ul>
+                    <li><strong>+10 XP</strong> per correct answer.</li>
+                    <li><strong>Streak Bonus:</strong> Multiplier increases every 3 correct answers.</li>
+                    <li><strong>Level Up:</strong> Every 100 XP gains a new Level.</li>
+                </ul>
+                <h3>🛑 Fair Play (Anti-Cheat)</h3>
+                <ul>
+                    <li><strong>Tab Switching:</strong> If you leave the tab, you get a Warning.</li>
+                    <li><strong>Context Menu:</strong> Right-click is disabled to prevent copying.</li>
+                </ul>
+                <h3>🆘 Lifelines</h3>
+                <ul>
+                    <li><strong>50/50:</strong> Removes 2 wrong options.</li>
+                    <li><strong>Freeze:</strong> Stops the timer for 10 seconds.</li>
+                    <li><strong>Skip:</strong> skips question (No points lost).</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- SCREEN 4: REVIEW ANSWERS -->
+    <section id="review-screen" class="screen hidden">
+        <div class="glass-card" style="max-height: 85vh; overflow-y: auto;">
+            <h2>📝 Answer Review</h2>
+            <div id="review-list" class="review-grid">
+                <!-- JS Injected -->
+            </div>
+            <div style="margin-top: 2rem; text-align: center;">
+                <button class="btn secondary-btn" onclick="goHome()"><i class="fa-solid fa-house"></i> Back to
+                    Home</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROFILE MODAL -->
+    <div id="profile-modal" class="modal hidden">
+        <div class="modal-content glass-card" style="text-align: center; max-width: 350px;">
+            <div class="modal-header" style="justify-content: flex-end;">
+                <button onclick="toggleModal('profile-modal', false)" class="close-modal"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="profile-avatar-large">
+                <img id="profile-img-large" src=""
+                    style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent); display:none;">
+                <div id="profile-initial"
+                    style="width: 80px; height: 80px; border-radius: 50%; background: var(--primary); display: flex; color:white; font-size: 2rem; font-weight: bold; align-items: center; justify-content: center; margin: 0 auto;">
+                    ?</div>
+            </div>
+
+            <h2 id="profile-name-large" style="margin: 10px 0;">Guest</h2>
+
+            <div class="stat-row"
+                style="display: flex; justify-content: space-around; margin: 1.5rem 0; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 12px;">
+                <div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Level</div>
+                    <div id="profile-level" style="font-size: 1.5rem; font-weight: 800; color: var(--accent);">1</div>
+                </div>
+                <div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">Total XP</div>
+                    <div id="profile-xp" style="font-size: 1.5rem; font-weight: 800;">0</div>
+                </div>
+            </div>
+
+            <button onclick="signOut()" class="btn"
+                style="width: 100%; background: rgba(255, 71, 87, 0.2); color: #ff4757; border: 1px solid #ff4757;">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> Sign Out
+            </button>
+        </div>
+    </div>
+
+    <!-- POLICY MODAL -->
+    <div id="policy-modal" class="modal hidden">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h2>🔒 Terms & Policy</h2>
+                <button class="close-modal-policy" onclick="toggleModal('policy-modal', false)"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body" style="text-align: left; line-height: 1.6;">
+                <h3>1. User Data</h3>
+                <p>We store your Name, XP, and High Scores to provide the leaderboard service. If you use Google Login,
+                    we store your email for authentication only.</p>
+
+                <h3>2. Cookies</h3>
+                <p>We use LocalStorage to save your progress on this device.</p>
+
+                <h3>3. Disclaimer</h3>
+                <p><strong>CJ Productions</strong> is an educational entity. All exam questions are fetched from public
+                    open-source databases.</p>
+
+                <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 20px 0;">
+                <div style="text-align: center;">
+                    <a href="admin.html" class="link-btn" style="font-size: 0.7rem; color: var(--text-muted);">Admin
+                        Access</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- EMERGENCY FALLBACK SCRIPT (Runs if Modules Fail) -->
+    <script>
+        // Global Error Handler
+        window.addEventListener('error', function (e) {
+            console.error("Global Error:", e.message);
+            // Optional: alert("App Error: " + e.message);
+        });
+
+        // UI Helpers (Always Available)
+        function toggleModal(id, show) {
+            const el = document.getElementById(id);
+            if (el) {
+                if (show) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            }
+        }
+
+        function selectAmount(btn, val) {
+            document.querySelectorAll('.amount-btn').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            const inp = document.getElementById('amount');
+            if (inp) inp.value = val;
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            const icon = document.querySelector('#theme-toggle i');
+            if (icon) icon.className = next === 'dark' ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+        }
+
+        function toggleSound() {
+            const btn = document.getElementById('sound-btn');
+            if (!btn) return;
+            // Simple visual toggle
+            const icon = btn.querySelector('i');
+            if (icon.classList.contains('fa-volume-high')) {
+                icon.className = 'fa-solid fa-volume-xmark';
+                btn.style.opacity = '0.5';
+            } else {
+                icon.className = 'fa-solid fa-volume-high';
+                btn.style.opacity = '1';
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(e => console.log(e));
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        function handleProfileClick() {
+            // Visual feedback only if offline
+            alert("Profile requires active session.");
+        }
+
+        function handleAuthFallback() {
+            if (!window.auth) {
+                alert("Login service unavailable (CORS Block). Please run via Live Server.");
+            }
+        }
+
+        // Check if Module Loaded
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (!window.startGame) {
+                    console.warn("Main Script Validation Failed. Check CORS/Server.");
+                    // Fallback to allow simple UI interaction
+                }
+            }, 1000);
+        });
+    </script>
+    <script type="module" src="script.js?v=bust_cache_2"
+        onerror="alert('Error: Modules cannot run via file://. Please use a Local Server (Live Server).')"></script>
+    <style>
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 3000;
+        }
+
+        .toast {
+            background: rgba(0, 0, 0, 0.8);
+            border-left: 4px solid var(--accent);
+            color: white;
+            padding: 15px 25px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</body>
+
+</html>
