@@ -108,20 +108,32 @@ const ui = {
 
 // --- INITIALIZATION ---
 
-document.addEventListener('DOMContentLoaded', () => {
+const initializeApp = () => {
+    console.log("🚀 Initializing App Logic...");
     loadSettings();
     initEventListeners();
     initFirestoreListeners();
     initKeyboard();
     initAntiCheat();
 
-    // Auto-select 10 Questions by default
+    // Auto-select 10 Questions
     const defaultBtn = document.querySelector('.amount-btn');
     if (defaultBtn) selectAmount(defaultBtn, 10);
 
-    // initAuth is handled by firebase-config listener mostly, 
-    // but checks for user state.
-});
+    // Remove Fallback Onclicks (Prevent Double Toggle)
+    const cleanupIds = ['google-login-btn', 'theme-toggle', 'sound-btn', 'fullscreen-btn', 'profile-btn', 'show-leaderboard'];
+    cleanupIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.removeAttribute('onclick');
+    });
+    console.log("✅ Fallback Listeners Removed - JS Control Active");
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    initializeApp();
+}
 
 function initAuth() {
     // Login
@@ -1046,11 +1058,3 @@ window.toggleModal = toggleModal;
 window.auth = auth;
 
 console.log("🚀 QuizMaster Script Loaded & Ready");
-
-// Clean up Fallbacks (Hydration)
-document.addEventListener('DOMContentLoaded', () => {
-    const loginBtn = document.getElementById('google-login-btn');
-    if (loginBtn) loginBtn.removeAttribute('onclick'); // Disable fallback alert
-
-    // We keep leaderboard onclick as it uses toggleModal which is safe
-});
