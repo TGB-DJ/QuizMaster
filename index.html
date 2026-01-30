@@ -71,6 +71,8 @@
                         style="display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255,255,255,0.05); padding: 5px; border-radius: 50px;">
                         <img id="user-avatar" src="" alt="User" style="width: 30px; height: 30px; border-radius: 50%;">
                         <span id="user-name-display" style="font-size: 0.9rem;"></span>
+                        <span id="user-level-badge"
+                            style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">Lv.1</span>
                         <button id="logout-btn"
                             style="background: none; border: none; color: var(--error); cursor: pointer;"><i
                                 class="fa-solid fa-right-from-bracket"></i></button>
@@ -139,6 +141,10 @@
         <section id="quiz-screen" class="screen hidden">
             <div class="glass-card quiz-card">
                 <div class="quiz-header">
+                    <button id="quiz-back-btn" class="icon-btn" onclick="confirmQuitQuiz()" title="Back to Home"
+                        style="position: absolute; left: 10px; top: 10px;">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
                     <div class="info-badges">
                         <div class="badge-item score-badge"><i class="fa-solid fa-star"></i> <span
                                 id="current-score">0</span></div>
@@ -222,9 +228,11 @@
                 </div>
 
                 <div class="action-buttons">
+                    <button id="next-set-btn" class="btn primary-btn"><i class="fa-solid fa-forward"></i> Next
+                        Set</button>
                     <button id="share-btn" class="btn accent-btn"><i class="fa-brands fa-twitter"></i> Share</button>
                     <button id="review-btn" class="btn secondary-btn"><i class="fa-solid fa-eye"></i> Review</button>
-                    <button id="restart-btn" class="btn primary-btn"><i class="fa-solid fa-rotate-right"></i> Play
+                    <button id="restart-btn" class="btn secondary-btn"><i class="fa-solid fa-rotate-right"></i> Play
                         Again</button>
                     <button id="home-btn" class="btn secondary-btn"><i class="fa-solid fa-house"></i> Home</button>
                 </div>
@@ -457,6 +465,12 @@
         function validateAndStart(e) {
             if (e) e.preventDefault();
             alert("Please run this app via Live Server or on Netlify.\nDirect file:// access is blocked for security.");
+        }
+
+        function confirmQuitQuiz() {
+            if (confirm("Are you sure you want to quit? Your progress will be lost.")) {
+                if (window.goHome) window.goHome();
+            }
         }
 
         // Check if Module Loaded

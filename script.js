@@ -13,7 +13,10 @@ import {
 // --- CONFIGURATION & STATE ---
 
 const CONSTANTS = {
-    TIMER_BASE: 15, // seconds
+    TIMER_EASY: 60,      // 1 minute for easy
+    TIMER_MEDIUM: 50,    // 50 seconds for medium
+    TIMER_HARD: 40,      // 40 seconds for hard
+    TIMER_BASE: 15,      // Default fallback
     POINTS_PER_Q: 10,
     STREAK_BONUS: 5,
     API_BASE: 'https://opentdb.com/api.php'
@@ -32,7 +35,10 @@ const STATE = {
     isFrozen: false,
     audioEnabled: true,
     xp: 0,
-    level: 1
+    level: 1,
+    correctCount: 0,  // Track correct answers
+    wrongCount: 0,    // Track wrong answers
+    xpGained: 0       // Track XP earned this session
 };
 
 // --- LAZY LOADER ---
@@ -196,13 +202,40 @@ async function syncCloudData(user) {
     }
 }
 
-function loadUserData() {
-    const saved = localStorage.getItem('quiz_userdata');
-    if (saved) {
-        const data = JSON.parse(saved);
-        STATE.xp = data.xp || 0;
-        STATE.level = data.level || 1;
-        // Don't override name if Guest, let them type
+async function loadUserData(uid) {
+    if (!uid) {
+        // Load from localStorage for guests
+        const saved = localStorage.getItem('quiz_userdata');
+        if (saved) {
+            const data = JSON.parse(saved);
+            STATE.xp = data.xp || 0;
+            STATE.level = data.level || 1;
+        }
+        return;
+    }
+
+    // Load from Firebase for authenticated users
+    try {
+        const snap = await getDoc(doc(db, "users", uid));
+
+        if (snap.exists()) {
+            const data = snap.data();
+            STATE.xp = data.xp || 0;
+            STATE.level = data.level || Math.floor((data.xp || 0) / 100) + 1;
+
+            // Update level badge in UI
+            const levelBadge = document.getElementById('user-level-badge');
+            if (levelBadge) {
+                levelBadge.textContent = `Lv.${STATE.level}`;
+            }
+
+            showToast(`Progress Synced! Level ${STATE.level} | ${STATE.xp} XP 🔄`);
+        } else {
+            // First time? Create user document
+            await saveUserData();
+        }
+    } catch (e) {
+        console.error("Failed to load user data:", e);
     }
 }
 
@@ -262,6 +295,9 @@ function initEventListeners() {
     if (ui.nextBtn) ui.nextBtn.addEventListener('click', nextQuestion);
 
     // 3. Results
+    const nextSetBtn = document.getElementById('next-set-btn');
+    if (nextSetBtn) nextSetBtn.addEventListener('click', startNextSet);
+
     const restartBtn = document.getElementById('restart-btn');
     if (restartBtn) restartBtn.addEventListener('click', goHome);
 
@@ -571,6 +607,8 @@ function startGame() {
     STATE.currIndex = 0;
     STATE.score = 0;
     STATE.streak = 0;
+    STATE.correctCount = 0;  // Reset counters
+    STATE.wrongCount = 0;
     STATE.lifelines = { fifty: true, freeze: true, skip: true };
     STATE.isFrozen = false;
 
@@ -583,6 +621,46 @@ function startGame() {
     screens.quiz.classList.add('active');
 
     renderQuestion();
+}
+
+async function startNextSet() {
+    // Keep user and XP, but reset game stats
+    SOUNDS.click();
+    showToast("🔄 Loading next set of questions...", false);
+
+    // Hide results, show loader
+    screens.result.classList.add('hidden');
+    screens.loader.classList.remove('hidden');
+
+    // Reset game-specific state (keep XP and user)
+    STATE.currIndex = 0;
+    STATE.score = 0;
+    STATE.streak = 0;
+    STATE.correctCount = 0;
+    STATE.wrongCount = 0;
+    STATE.lifelines = { fifty: true, freeze: true, skip: true };
+    STATE.isFrozen = false;
+
+    try {
+        // Fetch new questions with same config
+        await fetchQuestions();
+
+        // Reset UI
+        resetLifelines();
+        updateStats();
+
+        // Start the new set
+        screens.loader.classList.add('hidden');
+        screens.quiz.classList.remove('hidden');
+        screens.quiz.classList.add('active');
+
+        renderQuestion();
+        showToast("✅ New questions loaded! Good luck!", false);
+    } catch (err) {
+        console.error("Failed to load next set:", err);
+        showToast("❌ Failed to load questions. Try again.", true);
+        goHome();
+    }
 }
 
 function renderQuestion() {
@@ -608,8 +686,18 @@ function renderQuestion() {
         ui.options.appendChild(btn);
     });
 
-    // Timer
-    STATE.timeLeft = CONSTANTS.TIMER_BASE;
+    // Timer - Based on difficulty
+    const difficulty = STATE.config.difficulty.toLowerCase();
+    if (difficulty === 'easy') {
+        STATE.timeLeft = CONSTANTS.TIMER_EASY;
+    } else if (difficulty === 'medium') {
+        STATE.timeLeft = CONSTANTS.TIMER_MEDIUM;
+    } else if (difficulty === 'hard') {
+        STATE.timeLeft = CONSTANTS.TIMER_HARD;
+    } else {
+        STATE.timeLeft = CONSTANTS.TIMER_BASE; // Default
+    }
+
     STATE.isFrozen = false;
     startTimer();
 
@@ -657,6 +745,7 @@ function handleAnswer(btn, selected, correct) {
 
         STATE.score += points;
         STATE.streak++;
+        STATE.correctCount++; // Track correct answer
 
         if (STATE.streak > 2) triggerConfetti();
         addXP(points);
@@ -665,6 +754,7 @@ function handleAnswer(btn, selected, correct) {
         cards.forEach(c => { if (c.innerHTML === correct) c.classList.add('correct'); });
         SOUNDS.wrong();
         STATE.streak = 0;
+        STATE.wrongCount++; // Track wrong answer
         showToast("Oops! Incorrect.", true);
     }
 
@@ -682,7 +772,13 @@ function addXP(amount) {
     if (nextLevel > STATE.level) {
         STATE.level = nextLevel;
         SOUNDS.win();
-        showToast(`🎉 Level Up! You are now Level ${STATE.level}`);
+
+        // Update level badge in UI
+        const levelBadge = document.getElementById('user-level-badge');
+        if (levelBadge) {
+            levelBadge.textContent = `Lv.${STATE.level}`;
+        }
+
         showToast(`🎉 Level Up! You are now Level ${STATE.level}`);
     }
     saveUserData(); // Auto-save after every XP gain
@@ -783,9 +879,13 @@ function resetLifelines() {
 // --- END GAME & STATS ---
 
 function endGame() {
+    // Hide quiz screen
     screens.quiz.classList.remove('active');
     screens.quiz.classList.add('hidden');
+
+    // Show result screen
     screens.result.classList.remove('hidden');
+    screens.result.classList.add('active');
 
     SOUNDS.win();
 
@@ -794,17 +894,38 @@ function endGame() {
         confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     });
 
-    // Update Stats
+    // Calculate XP gained this session
+    const sessionXP = STATE.score; // XP = Score for simplicity
+    STATE.xpGained = sessionXP;
+
+    // Update Stats Display
     document.getElementById('final-score').innerText = STATE.score;
 
-    const correct = STATE.score > 0 ? Math.floor(STATE.score / 15) : 0; // Estimation for demo
-    // Actually let's count properly: We need to track correct count in STATE usually, but for now:
-    // Let's assume Max Possible Score per Q is approx 25. 
-    // Simplified for UI:
-    const acc = Math.round((STATE.score / (STATE.questions.length * 25)) * 100);
+    // Show correct/wrong counts
+    const correctEl = document.getElementById('correct-count');
+    const wrongEl = document.getElementById('wrong-count');
+    const accuracyEl = document.getElementById('accuracy-percent');
 
-    document.querySelector('.final-message').innerText =
-        acc > 80 ? "Quiz Master!" : acc > 50 ? "Good Job!" : "Keep Practicing!";
+    if (correctEl) correctEl.innerText = STATE.correctCount;
+    if (wrongEl) wrongEl.innerText = STATE.wrongCount;
+
+    // Calculate accuracy
+    const totalAnswered = STATE.correctCount + STATE.wrongCount;
+    const accuracy = totalAnswered > 0 ? Math.round((STATE.correctCount / totalAnswered) * 100) : 0;
+    if (accuracyEl) accuracyEl.innerText = accuracy + '%';
+
+    // Update message based on performance
+    const messageEl = document.querySelector('.final-message');
+    if (messageEl) {
+        messageEl.innerText =
+            accuracy >= 80 ? "🏆 Quiz Master!" :
+                accuracy >= 60 ? "👍 Good Job!" :
+                    accuracy >= 40 ? "📚 Keep Practicing!" :
+                        "💪 Try Again!";
+    }
+
+    // Show XP gained toast
+    showToast(`🌟 +${sessionXP} XP Earned! Total: ${STATE.xp}`, false);
 
     saveHighScore();
     renderChart();
@@ -834,19 +955,40 @@ async function saveHighScore() {
     if (!STATE.user || STATE.score === undefined) return;
 
     try {
-        // MATCH LISTENER: Write to "users" collection so it appears on Leaderboard
-        await addDoc(collection(db, "users"), {
-            name: STATE.user,
-            score: Number(STATE.score),
+        const userId = auth.currentUser ? auth.currentUser.uid : `guest_${STATE.user}`;
+        const userName = auth.currentUser ? auth.currentUser.displayName : STATE.user;
+
+        // Get existing user data
+        const userDocRef = doc(db, "users", userId);
+        const userDoc = await getDoc(userDocRef);
+
+        let totalScore = STATE.score;
+        let totalGames = 1;
+
+        if (userDoc.exists()) {
+            const existingData = userDoc.data();
+            // Add new score to existing total score
+            totalScore = (existingData.score || 0) + STATE.score;
+            totalGames = (existingData.totalGames || 0) + 1;
+        }
+
+        // Use setDoc with merge to update existing user or create new
+        await setDoc(userDocRef, {
+            name: userName,
+            score: Number(totalScore),  // Accumulated score
             xp: STATE.xp || 0,
+            level: STATE.level || 1,
             verified: !!auth.currentUser,
-            uid: auth.currentUser ? auth.currentUser.uid : 'guest',
-            date: new Date().toISOString()
-        });
-        console.log("✅ Score saved to 'users' collection!");
-        showToast("Score Saved to Leaderboard! 🏆");
+            uid: userId,
+            lastPlayed: serverTimestamp(),
+            totalGames: totalGames
+        }, { merge: true });
+
+        console.log(`✅ Score saved! Total: ${totalScore} pts (${totalGames} games)`);
+        showToast(`🏆 +${STATE.score} pts! Total: ${totalScore} pts`);
     } catch (e) {
         console.error("Error adding score: ", e);
+        showToast("❌ Failed to save score", true);
     }
 }
 
@@ -1022,8 +1164,18 @@ function goHome() {
     screens.result.classList.add('hidden');
     screens.result.classList.remove('active');
 
+    screens.quiz.classList.add('hidden');
+    screens.quiz.classList.remove('active');
+
     screens.start.classList.add('active');
     screens.start.classList.remove('hidden');
+}
+
+function confirmQuitQuiz() {
+    if (confirm("⚠️ Are you sure you want to quit?\n\nYour current progress will be lost!")) {
+        SOUNDS.click();
+        goHome();
+    }
 }
 
 function shareResults() {
@@ -1069,13 +1221,17 @@ function initFirestoreListeners() {
             else if (i === 1) { rankClass = 'rank-2'; icon = '🥈'; }
             else if (i === 2) { rankClass = 'rank-3'; icon = '🥉'; }
 
-            const badge = entry.verified ? '<i class="fa-solid fa-circle-check" style="color:#1DA1F2; margin-left:10px;"></i>' : '';
+            const badge = entry.verified ? '<i class="fa-solid fa-circle-check" style="color:#1DA1F2; margin-left:5px;"></i>' : '';
+
+            // Calculate level badge
+            const level = entry.level || Math.floor((entry.xp || 0) / 100) + 1;
+            const levelBadge = `<span class="level-badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: 5px;">Lv.${level}</span>`;
 
             const row = document.createElement('div');
             row.classList.add('highscore-entry', rankClass);
             row.innerHTML = `
                 <span class="rank">#${i + 1}</span>
-                <span class="name">${icon} ${entry.name || 'Anonymous'} ${badge}</span>
+                <span class="name">${icon} ${entry.name || 'Anonymous'} ${levelBadge} ${badge}</span>
                 <span class="score">${entry.score} pts</span>
             `;
             list.appendChild(row);
@@ -1119,6 +1275,7 @@ function sanitizeInput(str) {
 window.startGame = startGame;
 window.stateReset = stateReset;
 window.goHome = goHome;
+window.confirmQuitQuiz = confirmQuitQuiz;
 window.shareResults = shareResults;
 window.selectAmount = selectAmount;
 window.toggleModal = toggleModal;
