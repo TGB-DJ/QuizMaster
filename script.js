@@ -115,6 +115,7 @@ const initializeApp = () => {
     initFirestoreListeners();
     initKeyboard();
     initAntiCheat();
+    initAuth(); // CRITICAL: Attach login listeners!
 
     // Auto-select 10 Questions
     const defaultBtn = document.querySelector('.amount-btn');
@@ -339,8 +340,37 @@ async function handleGoogleLogin() {
         // Update UI
         document.getElementById('username').value = user.displayName;
         document.getElementById('username').disabled = true; // Lock it
-        document.querySelector('.username-group p').innerText = "Logged in via Google";
+
+        // Safer way to show login status
+        const group = document.querySelector('.username-group');
+        let statusText = group.querySelector('p');
+        if (!statusText) {
+            statusText = document.createElement('p');
+            statusText.style.fontSize = "0.8rem";
+            statusText.style.color = "var(--accent)";
+            statusText.style.marginTop = "5px";
+            group.appendChild(statusText);
+        }
+        statusText.innerText = "Logged in via Google";
+
         document.getElementById('google-login-btn').style.display = 'none'; // Hide login button
+
+        // ADMIN CHECK
+        const ADMIN_EMAIL = 'chirenjeevi7616@gmail.com';
+        if (user.email === ADMIN_EMAIL) {
+            showToast("Admin Access Granted 🛡️");
+            // Create/Show Admin Button
+            let adminBtn = document.getElementById('admin-panel-btn');
+            if (!adminBtn) {
+                adminBtn = document.createElement('a');
+                adminBtn.id = 'admin-panel-btn';
+                adminBtn.className = 'btn text-btn';
+                adminBtn.href = 'admin.html';
+                adminBtn.innerHTML = '<i class="fa-solid fa-user-shield"></i> Open Admin Panel';
+                adminBtn.style.color = '#ff4757';
+                document.getElementById('auth-section').appendChild(adminBtn);
+            }
+        }
 
         await loadUserData(user.uid);
     } catch (error) {
@@ -356,20 +386,23 @@ async function validateAndStart(e) {
     SOUNDS.click();
 
     // 1. Validate User
-    const userRaw = document.getElementById('username').value.trim();
+    let userRaw = document.getElementById('username').value.trim();
     if (STATE.user === 'Guest' && !userRaw) {
+        console.warn("Validation Failed: No Name");
+        alert("Please enter your name to start! ✍️"); // Force User Awareness
         const input = document.getElementById('username');
         input.classList.add('shake');
         input.style.borderColor = 'var(--error)';
         setTimeout(() => input.classList.remove('shake'), 500);
-        showToast("Please enter a name!", true);
         return;
     }
 
-    if (STATE.user === 'Guest') STATE.user = userRaw.substring(0, 15);
+    // SANITIZE INPUT (Prevents HTML Injection)
+    if (STATE.user === 'Guest') STATE.user = sanitizeInput(userRaw.substring(0, 15));
 
     // 2. State & Config
-    document.getElementById('user-greeting').innerText = STATE.user;
+    const greeting = document.getElementById('user-greeting');
+    if (greeting) greeting.innerText = STATE.user;
 
     // Validate Amount
     const amountVal = document.getElementById('amount').value;
@@ -533,6 +566,7 @@ async function autoSeedQuestions(exam) {
 }
 
 function startGame() {
+    // NOTE: Admin plays exactly like normal user (Fair Play)
     // Reset State
     STATE.currIndex = 0;
     STATE.score = 0;
@@ -800,15 +834,17 @@ async function saveHighScore() {
     if (!STATE.user || STATE.score === undefined) return;
 
     try {
-        await addDoc(collection(db, "leaderboard"), {
+        // MATCH LISTENER: Write to "users" collection so it appears on Leaderboard
+        await addDoc(collection(db, "users"), {
             name: STATE.user,
             score: Number(STATE.score),
-            xp: STATE.xp,
+            xp: STATE.xp || 0,
             verified: !!auth.currentUser,
-            uid: auth.currentUser ? auth.currentUser.uid : null, // Save UID for Admin deletion
+            uid: auth.currentUser ? auth.currentUser.uid : 'guest',
             date: new Date().toISOString()
         });
-        console.log("Score saved to Firebase!");
+        console.log("✅ Score saved to 'users' collection!");
+        showToast("Score Saved to Leaderboard! 🏆");
     } catch (e) {
         console.error("Error adding score: ", e);
     }
@@ -1046,6 +1082,38 @@ function initFirestoreListeners() {
         });
     });
 }
+// --- ROBUSTNESS LOGIC (Bug Prevention) ---
+
+// 1. Global Error Shield
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    console.error("Global Catch:", error);
+    showToast("⚠️ Something went wrong. Saving progress...", true);
+    return false; // Let default handler run too
+};
+
+// 2. Network Monitor
+window.addEventListener('online', () => showToast("🌐 Online: Reconnected!", false));
+window.addEventListener('offline', () => showToast("📡 Offline: Check connection.", true));
+
+// 3. Debounce Utility
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// 4. Input Sanitizer (XSS Prevention)
+function sanitizeInput(str) {
+    const temp = document.createElement('div');
+    temp.textContent = str;
+    return temp.innerHTML;
+}
 
 // Export global for HTML access (onclick="startGame()")
 window.startGame = startGame;
@@ -1056,5 +1124,6 @@ window.selectAmount = selectAmount;
 window.toggleModal = toggleModal;
 // CRITICAL: Expose Auth so Fallback knows we are live
 window.auth = auth;
+window.validateAndStart = validateAndStart; // Start Button Fix
 
 console.log("🚀 QuizMaster Script Loaded & Ready");

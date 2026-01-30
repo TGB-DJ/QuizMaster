@@ -81,7 +81,7 @@
                     <input type="text" id="username" placeholder="Enter your name" maxlength="15">
                 </div>
 
-                <form id="quiz-config">
+                <form id="quiz-config" onsubmit="return false;">
                     <div class="config-grid">
                         <div class="input-group">
                             <label for="exam-type">Select Exam</label>
@@ -124,8 +124,8 @@
                     </div>
 
                     <div style="text-align: center; width: 100%;">
-                        <button type="submit" class="btn primary-btn pulse">Start Quiz <i
-                                class="fa-solid fa-bolt"></i></button>
+                        <button type="button" id="start-btn" class="btn primary-btn pulse"
+                            onclick="validateAndStart(event)">Start Quiz <i class="fa-solid fa-bolt"></i></button>
                     </div>
 
                     <button type="button" id="show-leaderboard" class="btn text-btn"
@@ -452,6 +452,11 @@
             if (!window.auth) {
                 alert("Login service unavailable (CORS Block). Please run via Live Server.");
             }
+        }
+
+        function validateAndStart(e) {
+            if (e) e.preventDefault();
+            alert("Please run this app via Live Server or on Netlify.\nDirect file:// access is blocked for security.");
         }
 
         // Check if Module Loaded
